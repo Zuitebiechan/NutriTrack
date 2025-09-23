@@ -1,0 +1,134 @@
+<resources>
+    <string name="app_name">NutriTrack</string>
+    <string name="title_activity_login_page">LoginPage</string>
+    <string name="title_activity_questionnaire">Questionnaire</string>
+    <string name="title_activity_home_page">HomePage</string>
+    <string name="title_activity_insights_page">InsightsPage</string>
+    <string name="title_activity_nutri_coach_page">NutriCoachPage</string>
+    <string name="title_activity_settings_page">SettingsPage</string>
+
+    <string name="disclaimer">
+    This app provides general health and nutrition information for educational purposes only. It is not intended as medical advice, diagnosis, or treatment.
+    </string>
+
+    <string name="disclaimer_note">
+    Always consult a qualified health professional before making any changes to your diet, exercise, or health regimen. Use the app at your own risk.
+    </string>
+
+    <string name="visit_clinic_prompt">
+        If you\'d like to see an Accredited Practicing Dietitian (APD), please visit the
+    </string>
+
+    <string name="clinic_url">https://www.monash.edu/medicine/scs/nutrition/clinics</string>
+
+    <string name="designed_by">Designed with ♥ by %1$s</string>
+
+    <string name="student_id">Haoshuang Song (34517812)</string>
+
+    <string name="login_label_id">My ID (Provided by your Clinician)</string>
+    
+    <string name="login_label_phone">Phone Number</string>
+
+    <string name="login_hint_pre_registered">This app is only for pre-registered users. Please have your ID and phone number handy before continuing.</string>
+
+    <string name="login_error">Invalid Clinician ID or Phone Number</string>
+
+    <string name="cd_hide_phone">Hide phone number</string>
+    <string name="cd_show_phone">Show phone number</string>
+
+    <string name="clinicianScreen_note">Note: The HEIFA score ranges from 0 to 100, where higher scores indicate better nutritional quality.</string>
+    <string name="clinicianScreen_fruitSeachTitle">Curious about a fruit?</string>
+    <string name="clinicianScreen_insightsInput">Discover interesting patterns in nutrition data</string>
+    <string name="clinicianScreen_nutritionHeader">Nutrition (per 100g):</string>
+    <string name="initialStateMsg">Click send to generate insights 💡</string>
+    <string name="tipHistoryDialog_emptyMessage">No tips saved yet. Ask for tips to see them here!</string>
+
+    <string name="fruit_error_msg">Please try another fruit name or \ntry later.</string>
+
+    <string name="nutriCoachScreen_header">👩‍⚕️  Hi! \nWhat can I help you with?</string>
+    <string name="nutriCoachScreen_goodScore">Your fruit consumption is good! Keep it up! 👍</string>
+    <string name="nutriCoachScreen_defaultPrompt">Generate a short, engaging tip to help improve fruit intake</string>
+    <string name="nutriCoachScreen_searchPlaceholder">Enter a fruit name to learn more about it</string>"
+    <string-array name="fruit_prompts_short">
+        <item>Benefits of seasonal fruits</item>
+        <item>Creative ways for more fruits</item>
+        <item>Quick fruit recipe idea</item>
+    </string-array>
+    <string-array name="fruit_prompts_full">
+        <item>Tell me the benefits of eating seasonal fruits and how they improve health</item>
+        <item>Suggest creative and practical ways to include more fruits in daily meals</item>
+        <item>Share a quick and easy fruit recipe idea that anyone can make in minutes</item>
+    </string-array>
+    
+    <string name="insightsScreen_totalScoreTitle">Here is your HEIFA total score 👇</string>
+    <string name="insightsScreen_title">Your Food Quality Scores</string>"
+
+    <string name="homeScreen_foodExplanatationHeader">What is the Food Quality Score?</string>
+    <string name="homeScreen_foodExplanatationBody1">Your Food Quality Score provides a snapshot of how well your eating patterns align with established food guidelines, helping you identify both strengths and opportunities for improvement in your diet.</string>
+    <string name="homeScreen_foodExplanatationBody2">This personalized measurement considers various food groups including vegetables, fruits, whole grains, and proteins to give you practical insights for making healthier food choices.</string>
+    <string name="homeScreen_foodExplanatationButton">Quick Tips to Improve Your Score:</string>
+    <string name="homeScreen_editMsg">You\'ve already filled in your Food Intake Questionnaire, but you can change details here:</string>
+
+    <string name="homeScreen_quickTips1">🥦 Add at least one vegetable to every meal</string>
+    <string name="homeScreen_quickTips2">🍎 Have fruits as snacks throughout your day</string>
+    <string name="homeScreen_quickTips3">🥣 Choose whole grains over refined options</string>
+
+    <string name="loginScreen_dropdownMenuMsg">Only registered IDs are shown here</string>
+
+    <string name="accountScreen_deleteAccountMsg">This will delete your account information. This action cannot be undone.</string>
+    <string name="accountScreen_logoutMsg">Are you sure you want to logout?</string>
+
+    <string name="aboutScreen_version">Version: 1.0</string>
+    <string name="aboutScreen_address">Monash University</string>
+    <string name="aboutScreen_supportEmail">hson0042@student.monash.edu</string>
+    <string name="aboutScreen_hours">8AM - 5PM (PST)</string>
+    <string name="aboutScreen_copyrightInfo">© 2025 NutriTrack. All rights reserved.</string>
+
+    <string name="timingsScreen_title">What are your timings?</string>
+    <string name="timingsScreen_mealTime">When do you usually eat your biggest meal?</string>
+    <string name="timingsScreen_sleepTime">When do you usually go to sleep?</string>
+    <string name="timingsScreen_wakeTime">When do you usually wake up?</string>
+
+    <string name="personaScreen_title">What is your persona?</string>
+    <string name="personaScreen_description">People can be broadly classified into 6 different types based on their eating preferences. Select the type that best fits you!</string>
+    <string name="personaScreen_selectPersona">Select Your Persona Type</string>
+
+    <string name="foodCategoriesScreen_title">What do you eat?</string>
+    <string name="foodCategoriesScreen_description">Tick all the food categories you can eat</string>
+
+    <string name="passwordValidationMsg">Password must be at least 6 characters long and contain letters and numbersPassword must be at least 6 characters long and contain letters and numbers</string>
+
+    <string name="clinician_screen_title">Admin Statistics</string>
+    <string name="clinician_header_title">Population HEIFA Statistics</string>
+    <string name="ai_insights_title">AI Data Insights ✨</string>
+    <string name="general_statistics">General Statistics</string>
+    <string name="total_users">Total Users</string>
+    <string name="registered_users">Registered Users</string>
+    <string name="male_users">Male Users</string>
+    <string name="female_users">Female Users</string>
+    <string name="score_label">Score</string>
+    <string name="count_label">Count: %d</string>
+    <string name="no_registered_users">No registered users found</string>
+    <string name="user_id_header">User ID</string>
+    <string name="username_header">Username</string>
+    <string name="user_details_title">User Details</string>
+    <string name="personal_information">Personal Information</string>
+    <string name="user_id_label">User ID</string>
+    <string name="name_label">Name</string>
+    <string name="phone_label">Phone</string>
+    <string name="gender_label">Gender</string>
+    <string name="not_specified">Not specified</string>
+    <string name="heifa_scores">HEIFA Scores</string>
+    <string name="total_score_label">Total Score</string>
+    <string name="questionnaire_information">Questionnaire Information</string>
+    <string name="biggest_meal_time">Biggest Meal Time</string>
+    <string name="sleep_time">Sleep Time</string>
+    <string name="wake_time">Wake Time</string>
+    <string name="persona">Persona</string>
+    <string name="selected_food_categories">Selected Food Categories:</string>
+    <string name="no_questionnaire_info">No questionnaire information available</string>
+
+    <string name="insights_share_button">Share with someone</string>
+    <string name="insights_improve_diet_button">Improve my diet</string>
+    <string name="insights_scores_header">See all scores</string>
+</resources>
