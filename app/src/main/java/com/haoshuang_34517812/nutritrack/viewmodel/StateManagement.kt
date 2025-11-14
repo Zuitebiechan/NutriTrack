@@ -1,6 +1,7 @@
 package com.haoshuang_34517812.nutritrack.viewmodel
 
 import com.haoshuang_34517812.nutritrack.data.network.fruityvice.FruitDto
+import java.io.IOException
 
 sealed interface LoginState {
     data object Initial : LoginState
@@ -49,14 +50,27 @@ sealed interface SettingsUiState {
 
 sealed interface ApiResult<out T> {
     data object Initial : ApiResult<Nothing>
-    data class Success<T>(val data: T) : ApiResult<T>
-    data class Error(val msg: String, val code: Int? = null) : ApiResult<Nothing>
     data object Loading : ApiResult<Nothing>
-}
+    data class Success<T>(val data: T) : ApiResult<T>
 
+    sealed interface Error : ApiResult<Nothing> {
+        data class Network(val cause: IOException) : Error
+        data class Http(val code: Int, val message: String, val body: String?) : Error
+        data class Parsing(val cause: Throwable) : Error
+        data class Unknown(val cause: Throwable) : Error
+    }
+}
 sealed interface FruitUiState {
     data object Initial : FruitUiState
     data object Loading : FruitUiState
     data class Success(val fruit: FruitDto) : FruitUiState
     data class Error(val message: String) : FruitUiState
+}
+
+sealed class GenAiUiState {
+    data object Idle : GenAiUiState()
+    data object Loading : GenAiUiState()
+    data class Content(val text: String) : GenAiUiState()
+    data class Error(val message: String) : GenAiUiState()           // 远端错误展示文案
+    data class Validation(val message: String) : GenAiUiState()      // ✅ 本地校验
 }

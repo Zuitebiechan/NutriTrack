@@ -8,6 +8,7 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.repository.GenAIRepository
 import com.haoshuang_34517812.nutritrack.data.repository.NutriCoachTipRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,9 @@ class GenAIViewModel(
 
     private val _state = MutableStateFlow<ApiResult<String>>(ApiResult.Initial)
     val state: StateFlow<ApiResult<String>> = _state.asStateFlow()
+
+    private val _ui = MutableStateFlow<GenAiUiState>(GenAiUiState.Idle)
+    val ui: StateFlow<GenAiUiState> = _ui
 
     // Current prompt for database storage
     private var currentPrompt: String = ""
@@ -55,7 +59,7 @@ class GenAIViewModel(
     ) {
         val total = maleCount + femaleCount
         if (total == 0) {
-            _state.value = ApiResult.Error("No population data.")
+            _ui.value = GenAiUiState.Error("No population data.")
             return
         }
 
@@ -98,7 +102,7 @@ class GenAIViewModel(
      */
     fun sendCustomPrompt(prompt: String) {
         if (prompt.isBlank()) {
-            _state.value = ApiResult.Error("Prompt cannot be empty")
+            _ui.value = GenAiUiState.Validation("Prompt cannot be empty")
             return
         }
 
@@ -131,9 +135,14 @@ class GenAIViewModel(
      */
     private fun sendPrompt(prompt: String) {
         viewModelScope.launch {
-            _state.value = ApiResult.Loading
-            val result = repo.askGemini(prompt)
-            _state.value = result
+            _ui.value = GenAiUiState.Loading
+            when (val r = repo.askGemini((prompt))) {
+                is ApiResult.Success -> _ui.value = GenAiUiState.Content(r.data)
+                is ApiResult.Error.Network -> _ui.value = GenAiUiState.Error("Network issue, try again.")
+                is ApiResult.Error.Http -> _ui.value = GenAiUiState.Error("Server error: ${r.code}")
+                is ApiResult.Error.Parsing -> _ui.value = GenAiUiState.Error(r.toString())
+                else -> _ui.value = GenAiUiState.Error("Unknown error")
+            }
         }
     }
 
@@ -153,7 +162,9 @@ class GenAIViewModel(
                         content = tipContent,
                         prompt = currentPrompt
                     )
-                } catch (e: Exception) {
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (t: Throwable) {
                     // Silent error handling
                 }
             }

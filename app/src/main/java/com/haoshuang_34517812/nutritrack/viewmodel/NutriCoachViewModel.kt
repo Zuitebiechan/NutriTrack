@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.repository.FruityviceRepository
 import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.net.UnknownHostException
 
 /**
@@ -49,8 +51,12 @@ class NutriCoachViewModel : ViewModel() {
         viewModelScope.launch {
             _fruitUiState.value = FruitUiState.Loading
             try {
-                val resp = repository.getFruit(_fruitQuery.value.lowercase())
+                // 切 IO 线程做网络
+                val resp = withContext(Dispatchers.IO){
+                    repository.getFruit(_fruitQuery.value.lowercase())
+                }
 
+                // 回到 Main 线程更新 UI 状态
                 if (resp.isSuccessful) {
                     val body = resp.body()
                     if (body != null) {

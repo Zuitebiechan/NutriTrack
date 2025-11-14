@@ -5,10 +5,11 @@ import com.google.ai.client.generativeai.type.content
 import com.haoshuang_34517812.nutritrack.BuildConfig
 import com.haoshuang_34517812.nutritrack.data.network.genai.Content
 import com.haoshuang_34517812.nutritrack.data.network.genai.GeminiRequest
-import com.haoshuang_34517812.nutritrack.data.network.genai.GenAIApiService
-import com.haoshuang_34517812.nutritrack.data.network.genai.NetworkModule
+import com.haoshuang_34517812.nutritrack.data.network.GenAIApiService
+import com.haoshuang_34517812.nutritrack.data.network.NetworkModule
 import com.haoshuang_34517812.nutritrack.data.network.genai.Part
 import com.haoshuang_34517812.nutritrack.viewmodel.ApiResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.IOException
@@ -24,10 +25,10 @@ class GenAIRepository(
         try {
             // 1. offline model
             offlineModel?.let { model ->
-                val rsp = model.generateContent(
-                    content { text(prompt) }
-                )
-                return@withContext ApiResult.Success(rsp.text ?: "")
+                val rsp = model.generateContent(content { text(prompt) })
+                val text = rsp.text ?: return@withContext ApiResult.Error.Parsing(IllegalStateException("empty offline text"))
+
+                return@withContext ApiResult.Success(text)
             }
 
             // 2. online model
@@ -37,23 +38,25 @@ class GenAIRepository(
             val resp = apiService.generateContent(request, apiKey)
 
             if (!resp.isSuccessful) {
-                return@withContext ApiResult.Error(
-                    msg = resp.errorBody()?.string() ?: resp.message(),
-                    code = resp.code()
-                )
+                val body = resp.errorBody()?.string()
+                return@withContext ApiResult.Error.Http(code = resp.code(), message = resp.message(), body = body)
+
             }
 
             val text = resp.body()
                 ?.candidates?.firstOrNull()
                 ?.content?.parts?.firstOrNull()?.text
-                ?: return@withContext ApiResult.Error("Empty response")
+                ?: return@withContext ApiResult.Error.Parsing(IllegalStateException("empty candidates/parts/text"))
+
 
             ApiResult.Success(text)
 
-        } catch (e: IOException) {
-            ApiResult.Error("Network error: ${e.localizedMessage}")
-        } catch (e: Exception) {
-            ApiResult.Error(e.localizedMessage ?: "Unknown error")
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (io: IOException) {
+            ApiResult.Error.Network(io)
+        } catch (t: Throwable) {
+            ApiResult.Error.Unknown(t)
         }
     }
 }

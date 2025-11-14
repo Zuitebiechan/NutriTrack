@@ -283,7 +283,7 @@ fun GenAIResultSection(
         is ApiResult.Error -> {
             // Error state
             GenAIErrorCard(
-                message = aiResult.msg,
+                message = aiResult.toString(),
                 onClose = onClose
             )
         }
