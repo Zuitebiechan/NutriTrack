@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -66,8 +67,8 @@ import kotlinx.coroutines.launch
 fun NutriCoachScreen(
     userId: String,
     navController: NavController,
-    viewModel: NutriCoachViewModel = viewModel(factory = NutriCoachViewModel.Factory()),
-    genAiViewModel: GenAIViewModel = viewModel(factory = GenAIViewModel.Factory())
+    viewModel: NutriCoachViewModel = hiltViewModel(),
+    genAiViewModel: GenAIViewModel = hiltViewModel()
 ) {
     // State collection
     val fruitScore by viewModel.getFruitScore(userId).collectAsState(initial = 100.0)

@@ -3,13 +3,14 @@ package com.haoshuang_34517812.nutritrack.data.repository
 import com.haoshuang_34517812.nutritrack.data.room.dao.PatientDao
 import com.haoshuang_34517812.nutritrack.data.room.entity.PatientEntity
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
 /**
  * Repository layer: Encapsulates all operations on PatientDao.
  * Higher layers (ViewModel/UseCase) only interact with this repository,
  * facilitating testing and future extensions.
  */
-class PatientRepository(private val dao: PatientDao) {
+class PatientRepository @Inject constructor(private val dao: PatientDao) {
     // Get all patients as a Flow
     fun getAllPatients(): Flow<List<PatientEntity>> = dao.getAllPatients()
 

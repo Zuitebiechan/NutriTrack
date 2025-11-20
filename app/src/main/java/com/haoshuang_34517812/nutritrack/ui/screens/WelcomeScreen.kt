@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haoshuang_34517812.nutritrack.theme.MediumGreen
 import com.haoshuang_34517812.nutritrack.viewmodel.WelcomeViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
@@ -46,7 +47,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
  */
 @Composable
 fun WelcomeScreen(
-    viewModel: WelcomeViewModel = viewModel(factory = WelcomeViewModel.Factory()),
+    viewModel: WelcomeViewModel = hiltViewModel(),
     onContinue: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current

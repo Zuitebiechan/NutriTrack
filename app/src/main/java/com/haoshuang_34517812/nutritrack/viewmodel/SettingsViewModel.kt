@@ -4,22 +4,22 @@ import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.models.UserInfo
 import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
 import com.haoshuang_34517812.nutritrack.util.AuthenticationManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * ViewModel for managing settings screen functionality
  * Handles user information, logout, and account operations
  */
-class SettingsViewModel : ViewModel() {
-
-    // Repository instance from application
-    private val repository: PatientRepository = NutriTrackApp.patientRepository
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val repository: PatientRepository
+) : ViewModel() {
 
     // UI state management
     private val _uiState = MutableLiveData<SettingsUiState>(SettingsUiState.Initial)
@@ -191,19 +191,6 @@ class SettingsViewModel : ViewModel() {
             } finally {
                 isOperationInProgress = false
             }
-        }
-    }
-
-    /**
-     * Factory for creating SettingsViewModel instances
-     */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(SettingsViewModel::class.java)) {
-                return SettingsViewModel() as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

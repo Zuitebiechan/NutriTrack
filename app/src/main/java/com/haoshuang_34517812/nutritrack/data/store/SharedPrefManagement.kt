@@ -2,13 +2,16 @@ package com.haoshuang_34517812.nutritrack.data.store
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.util.Constants
+import javax.inject.Inject
+import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 /**
  * Management of application preferences.
  */
-class PreferencesManager private constructor(context: Context) {
+@Singleton
+class PreferencesManager @Inject constructor(@ApplicationContext context: Context) {
 
     private val sharedPreferences: SharedPreferences = context.getSharedPreferences(
         PREFS_NAME, Context.MODE_PRIVATE
@@ -19,15 +22,6 @@ class PreferencesManager private constructor(context: Context) {
         private const val KEY_ADMIN_PASSWORD = Constants.KEY_ADMIN_PASSWORD
 
         private const val DEFAULT_ADMIN_PASSWORD = Constants.DEFAULT_ADMIN_PASSWORD
-
-        @Volatile
-        private var instance: PreferencesManager? = null
-
-        fun getInstance(): PreferencesManager {
-            return instance ?: synchronized(this) {
-                instance ?: PreferencesManager(NutriTrackApp.appContext).also { instance = it }
-            }
-        }
     }
 
     /**

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.haoshuang_34517812.nutritrack.R
@@ -64,8 +65,8 @@ import java.text.DecimalFormat
 fun ClinicianScreen(
     userId: String,
     navController: NavController,
-    viewModel: ClinicianViewModel = viewModel(factory = ClinicianViewModel.Factory()),
-    genAiViewModel: GenAIViewModel = viewModel(factory = GenAIViewModel.Factory())
+    viewModel: ClinicianViewModel = hiltViewModel(),
+    genAiViewModel: GenAIViewModel = hiltViewModel()
 ) {
     // Collect statistics data from LiveData
     val maleAverageScore by viewModel.maleAverageScore.observeAsState(0.0)

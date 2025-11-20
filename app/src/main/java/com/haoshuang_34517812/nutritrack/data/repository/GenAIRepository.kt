@@ -13,13 +13,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.IOException
+import javax.inject.Inject
 
 
-class GenAIRepository(
-    private val apiService: GenAIApiService = NetworkModule.genAiService,
-    private val apiKey: String = BuildConfig.apiKeySafe,
-    private val offlineModel: GenerativeModel? = null
+class GenAIRepository @Inject constructor(
+    private val apiService: GenAIApiService
 ) {
+    private val apiKey: String = BuildConfig.apiKeySafe
+    private val offlineModel: GenerativeModel? = null
 
     suspend fun askGemini(prompt: String): ApiResult<String> = withContext(Dispatchers.IO) {
         try {

@@ -4,8 +4,9 @@ import com.haoshuang_34517812.nutritrack.data.room.dao.NutriCoachTipDao
 import com.haoshuang_34517812.nutritrack.data.room.entity.NutriCoachTipEntity
 import kotlinx.coroutines.flow.Flow
 import java.util.Date
+import javax.inject.Inject
 
-class NutriCoachTipRepository(private val tipDao: NutriCoachTipDao) {
+class NutriCoachTipRepository @Inject constructor(private val tipDao: NutriCoachTipDao) {
     /**
      * Saves a new nutrition tip for a specific user
      * @param userId ID of the user receiving the tip

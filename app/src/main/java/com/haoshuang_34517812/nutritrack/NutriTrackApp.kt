@@ -2,33 +2,21 @@ package com.haoshuang_34517812.nutritrack
 
 import android.app.Application
 import android.content.Context
-import com.haoshuang_34517812.nutritrack.data.repository.NutriCoachTipRepository
 import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
-import com.haoshuang_34517812.nutritrack.data.repository.QuestionnaireInfoRepository
-import com.haoshuang_34517812.nutritrack.data.room.database.NutriTrackDatabase
-import com.haoshuang_34517812.nutritrack.data.store.PreferencesManager
 import com.haoshuang_34517812.nutritrack.util.AuthenticationManager
 import com.haoshuang_34517812.nutritrack.util.Constants
 import com.haoshuang_34517812.nutritrack.util.CsvInitializer
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
+@HiltAndroidApp
 class NutriTrackApp : Application() {
+
+    @Inject
+    lateinit var patientRepository: PatientRepository
+
     companion object {
-        lateinit var appContext: Context
-            private set
-        lateinit var database: NutriTrackDatabase
-            private set
-        lateinit var patientRepository: PatientRepository
-            private set
-        lateinit var questionnaireInfoRepository: QuestionnaireInfoRepository
-            private set
-        lateinit var nutriCoachTipRepository: NutriCoachTipRepository
-            private set
-
         private const val PREFS_NAME = Constants.SHARED_PREFS_NAME
-
-        val preferencesManager: PreferencesManager by lazy {
-            PreferencesManager.getInstance()
-        }
 
         // Check if data is already initialized
         private fun isDataInitialized(context: Context): Boolean {
@@ -47,14 +35,7 @@ class NutriTrackApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        appContext = applicationContext
         AuthenticationManager.init(this)
-
-        // Initialize database and repositories
-        database = NutriTrackDatabase.getDatabase(this)
-        patientRepository = PatientRepository(database.patientDao())
-        questionnaireInfoRepository = QuestionnaireInfoRepository(database.questionnaireInfoDao())
-        nutriCoachTipRepository = NutriCoachTipRepository(database.nutriCoachTipDao())
 
         // Initialize CSV data only if not already done
         initializeDataIfNeeded()
@@ -65,6 +46,7 @@ class NutriTrackApp : Application() {
 
             CsvInitializer.init(
                 application = this,
+                repository = patientRepository,
                 csvFileName = Constants.DATASET_NAME,
                 forceImport = false,
                 onComplete = { success ->

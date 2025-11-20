@@ -1,31 +1,25 @@
 package com.haoshuang_34517812.nutritrack.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.haoshuang_34517812.nutritrack.BuildConfig
-import com.google.ai.client.generativeai.GenerativeModel
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.repository.GenAIRepository
 import com.haoshuang_34517812.nutritrack.data.repository.NutriCoachTipRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * ViewModel for managing GenAI interactions and storing nutrition tips.
  * Handles communication with Gemini API and local tip storage.
  */
-class GenAIViewModel(
-    private val repo: GenAIRepository = GenAIRepository(
-        offlineModel = GenerativeModel(
-            modelName = "gemini-1.5-flash",
-            apiKey = BuildConfig.apiKeySafe
-        )
-    ),
-    private val tipRepository: NutriCoachTipRepository = NutriTrackApp.nutriCoachTipRepository
+@HiltViewModel
+class GenAIViewModel @Inject constructor(
+    private val repo: GenAIRepository,
+    private val tipRepository: NutriCoachTipRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ApiResult<String>>(ApiResult.Initial)
@@ -191,18 +185,5 @@ class GenAIViewModel(
     fun reset() {
         _state.value = ApiResult.Initial
         currentPrompt = ""
-    }
-
-    /**
-     * Factory for creating GenAIViewModel instances
-     */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(GenAIViewModel::class.java)) {
-                return GenAIViewModel() as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 }

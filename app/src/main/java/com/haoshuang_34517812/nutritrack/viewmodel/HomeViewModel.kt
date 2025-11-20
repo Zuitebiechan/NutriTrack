@@ -3,20 +3,20 @@ package com.haoshuang_34517812.nutritrack.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import javax.inject.Inject
 
 /**
  * ViewModel for the Home screen displaying user profile and scores
  */
-class HomeViewModel : ViewModel() {
-
-    // Repository instance for patient data access
-    private val repository: PatientRepository = NutriTrackApp.patientRepository
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val repository: PatientRepository
+) : ViewModel() {
 
     // User ID - Using LiveData for simple state
     private val _userId = MutableLiveData<String>()
@@ -40,19 +40,6 @@ class HomeViewModel : ViewModel() {
             val patient = repository.getPatientById(userId)
             _username.value = patient?.name ?: userId
             _totalScore.value = (patient?.heifaTotalScore ?: 0.0).roundToInt()
-        }
-    }
-
-    /**
-     * Factory for creating HomeViewModel instances
-     */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
-                return HomeViewModel() as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

@@ -1,25 +1,30 @@
 package com.haoshuang_34517812.nutritrack.viewmodel
 
+import android.app.Application
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
+import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
 import com.haoshuang_34517812.nutritrack.util.AuthenticationManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineExceptionHandler
 import java.security.MessageDigest
+import javax.inject.Inject
 
 /**
  * ViewModel for handling login authentication flow
  * Manages both login and registration states and validation
  */
-class LoginViewModel : ViewModel() {
-    private val repo = NutriTrackApp.patientRepository
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val repo: PatientRepository,
+    private val application: Application
+) : ViewModel() {
     private var errorClearJob: Job? = null
 
     // IDs from the database - StateFlow for reactive data streams
@@ -292,7 +297,7 @@ class LoginViewModel : ViewModel() {
                 }
 
                 // Login with user
-                AuthenticationManager.loginWith(patient, NutriTrackApp.appContext)
+                AuthenticationManager.loginWith(patient, application)
 
                 _loginState.value = LoginState.Success(patient.userId)
             } catch (e: Exception) {
@@ -379,7 +384,7 @@ class LoginViewModel : ViewModel() {
                     passwordHash = hash(currentState.password)
                 )
                 repo.insertPatient(updated)
-                AuthenticationManager.loginWith(updated, NutriTrackApp.appContext)
+                AuthenticationManager.loginWith(updated, application)
                 _registrationState.value = RegistrationState.Success(updated.userId)
             } catch (e: Exception) {
                 _registrationState.value = RegistrationState.Error("Registration error: ${e.message}")
@@ -525,19 +530,6 @@ class LoginViewModel : ViewModel() {
                 _registeredIds.value = registered
                 _unregisteredIds.value = unregistered
             }.collect {}
-        }
-    }
-
-    /**
-     * Factory for creating LoginViewModel instances
-     */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
-                return LoginViewModel() as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

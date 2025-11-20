@@ -3,28 +3,27 @@ package com.haoshuang_34517812.nutritrack.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.models.Gender
 import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
 import com.haoshuang_34517812.nutritrack.data.repository.QuestionnaireInfoRepository
 import com.haoshuang_34517812.nutritrack.data.room.entity.PatientEntity
+import com.haoshuang_34517812.nutritrack.data.store.PreferencesManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * ViewModel for the Clinician screen that displays statistics about patients
  * and handles admin authentication logic.
  */
-class ClinicianViewModel : ViewModel() {
-
-    // Repository instances from dependency injection
-    private val repository: PatientRepository = NutriTrackApp.patientRepository
-    private val questionnaireRepository: QuestionnaireInfoRepository = NutriTrackApp.questionnaireInfoRepository
-
-    // Add preferences manager
-    private val preferencesManager = NutriTrackApp.preferencesManager
+@HiltViewModel
+class ClinicianViewModel @Inject constructor(
+    private val repository: PatientRepository,
+    private val questionnaireRepository: QuestionnaireInfoRepository,
+    private val preferencesManager: PreferencesManager
+) : ViewModel() {
 
     // Male users' average score
     private val _maleAverageScore = MutableLiveData(0.0)
@@ -165,17 +164,4 @@ class ClinicianViewModel : ViewModel() {
      * @return Flow of questionnaire information for the user
      */
     fun getUserQuestionnaireInfo(userId: String) = questionnaireRepository.getInfoForUserFlow(userId)
-
-    /**
-     * Factory for creating ClinicianViewModel instances
-     */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(ClinicianViewModel::class.java)) {
-                return ClinicianViewModel() as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
-    }
 }

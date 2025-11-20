@@ -3,8 +3,9 @@ package com.haoshuang_34517812.nutritrack.data.repository
 import com.haoshuang_34517812.nutritrack.data.room.dao.QuestionnaireInfoDao
 import com.haoshuang_34517812.nutritrack.data.room.entity.QuestionnaireInfoEntity
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class QuestionnaireInfoRepository(private val dao: QuestionnaireInfoDao) {
+class QuestionnaireInfoRepository @Inject constructor(private val dao: QuestionnaireInfoDao) {
     /**
      * Saves or replaces questionnaire information for a patient
      * @param info The questionnaire information to save

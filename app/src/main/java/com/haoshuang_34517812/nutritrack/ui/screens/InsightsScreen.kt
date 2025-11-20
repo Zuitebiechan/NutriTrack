@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.haoshuang_34517812.nutritrack.R
@@ -57,7 +58,7 @@ import kotlin.math.roundToInt
 fun InsightsScreen(
     userId: String,
     navController: NavController,
-    viewModel: InsightsViewModel = viewModel(factory = InsightsViewModel.Factory())
+    viewModel: InsightsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val patient by viewModel.getPatient(userId).collectAsState(initial = null)

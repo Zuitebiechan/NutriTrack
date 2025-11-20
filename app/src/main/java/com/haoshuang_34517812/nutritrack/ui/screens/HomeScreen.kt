@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.haoshuang_34517812.nutritrack.R
 import com.haoshuang_34517812.nutritrack.navigation.Routes
@@ -46,7 +46,7 @@ import com.haoshuang_34517812.nutritrack.viewmodel.HomeViewModel
 fun HomeScreen(
     userId: String,
     navController: NavController,
-    viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     // Collect LiveData states
     val totalScore by viewModel.totalScore.observeAsState(0)

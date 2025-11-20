@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.haoshuang_34517812.nutritrack.R
@@ -41,7 +42,7 @@ import com.haoshuang_34517812.nutritrack.viewmodel.SettingsViewModel
 fun SettingsScreen(
     userId: String,
     navController: NavController,
-    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     Scaffold(
         bottomBar = {

@@ -2,7 +2,7 @@ package com.haoshuang_34517812.nutritrack.util
 
 import android.app.Application
 import android.content.Context
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
+import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,17 +16,18 @@ object CsvInitializer {
      * Initialize CSV data
      *
      * @param application Application context
+     * @param repository PatientRepository instance
      * @param csvFileName Name of the CSV file in assets
      * @param forceImport Whether to force import even if already imported
      * @param onComplete Callback to be invoked when import completes
      */
     fun init(
         application: Application,
+        repository: PatientRepository,
         csvFileName: String = Constants.DATASET_NAME,
         forceImport: Boolean = false,
         onComplete: ((success: Boolean) -> Unit)? = null
     ) {
-        val repository = NutriTrackApp.patientRepository
         val prefs = application
             .applicationContext
             .getSharedPreferences(Constants.SHARED_PREFS_NAME, Context.MODE_PRIVATE)

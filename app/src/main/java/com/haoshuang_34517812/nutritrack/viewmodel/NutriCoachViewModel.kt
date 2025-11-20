@@ -1,11 +1,10 @@
 package com.haoshuang_34517812.nutritrack.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.repository.FruityviceRepository
 import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,17 +15,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.UnknownHostException
+import javax.inject.Inject
 
 /**
  * ViewModel for the NutriCoach screen handling fruit API data and patient information
  */
-class NutriCoachViewModel : ViewModel() {
-
-    // Repository for fruit data API access
-    private val repository: FruityviceRepository = FruityviceRepository()
-
-    // Repository for patient data access
-    private val patientRepo: PatientRepository = NutriTrackApp.patientRepository
+@HiltViewModel
+class NutriCoachViewModel @Inject constructor(
+    private val repository: FruityviceRepository,
+    private val patientRepo: PatientRepository
+) : ViewModel() {
 
     // UI state for fruit data
     private val _fruitUiState = MutableStateFlow<FruitUiState>(FruitUiState.Initial)
@@ -129,18 +127,5 @@ class NutriCoachViewModel : ViewModel() {
      */
     fun resetState() {
         _fruitUiState.value = FruitUiState.Initial
-    }
-
-    /**
-     * Factory for creating NutriCoachViewModel instances
-     */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(NutriCoachViewModel::class.java)) {
-                return NutriCoachViewModel() as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
-        }
     }
 }

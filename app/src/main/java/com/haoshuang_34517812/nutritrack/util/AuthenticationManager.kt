@@ -10,9 +10,11 @@ object AuthenticationManager {
     private const val KEY_QUESTIONNAIRE_PREFIX = Constants.KEY_QUESTIONNAIRE_PREFIX
 
     private var currentUserId: String? = null
+    private lateinit var appContext: Context
 
     fun init(context: Context) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         currentUserId = prefs.getString(KEY_USER_ID, null)
     }
 
@@ -38,7 +40,7 @@ object AuthenticationManager {
     fun getCurrentUserId(): String? = currentUserId
 
     fun hasCompletedQuestionnaire(userId: String): Boolean {
-        val prefs = NutriTrackApp.appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val prefs = appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val key = "$KEY_QUESTIONNAIRE_PREFIX$userId"
         val result = prefs.getBoolean(key, false)
 
@@ -46,7 +48,7 @@ object AuthenticationManager {
     }
 
     fun setQuestionnaireCompleted(userId: String) {
-        val prefs = NutriTrackApp.appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val prefs = appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val key = "$KEY_QUESTIONNAIRE_PREFIX$userId"
         prefs.edit().putBoolean(key, true).apply()
     }

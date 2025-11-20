@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.haoshuang_34517812.nutritrack.R
 import com.haoshuang_34517812.nutritrack.theme.LightGreen
@@ -45,7 +46,7 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun RegisterScreen(
-    viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory()),
+    viewModel: LoginViewModel = hiltViewModel(),
     modifier: Modifier = Modifier,
     onRegisterSuccess: (String) -> Unit,
     onGoLogin: () -> Unit

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.haoshuang_34517812.nutritrack.R
 import com.haoshuang_34517812.nutritrack.data.models.FoodCategory
@@ -49,7 +50,7 @@ import kotlinx.coroutines.launch
 fun QuestionnaireScreen(
     userId: String,
     onComplete: () -> Unit,
-    viewModel: QuestionnaireViewModel = viewModel(factory = QuestionnaireViewModel.Factory())
+    viewModel: QuestionnaireViewModel = hiltViewModel()
 ) {
     // Collect states from ViewModel
     val categories by viewModel.selectedCategories.collectAsState()

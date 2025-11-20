@@ -3,25 +3,27 @@ package com.haoshuang_34517812.nutritrack.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.haoshuang_34517812.nutritrack.NutriTrackApp
 import com.haoshuang_34517812.nutritrack.data.models.FoodCategory
 import com.haoshuang_34517812.nutritrack.data.models.Persona
+import com.haoshuang_34517812.nutritrack.data.repository.QuestionnaireInfoRepository
 import com.haoshuang_34517812.nutritrack.data.room.entity.QuestionnaireInfoEntity
 import com.haoshuang_34517812.nutritrack.util.AuthenticationManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Updated ViewModel for the questionnaire screens with HorizontalPager
  * Manages the multi-step questionnaire flow and data collection process
  */
-class QuestionnaireViewModel : ViewModel() {
-
-    private val infoRepo = NutriTrackApp.questionnaireInfoRepository
+@HiltViewModel
+class QuestionnaireViewModel @Inject constructor(
+    private val infoRepo: QuestionnaireInfoRepository
+) : ViewModel() {
 
     // Current step index - Using LiveData for simple UI state
     private val _currentStepIndex = MutableLiveData(0)
@@ -180,19 +182,6 @@ class QuestionnaireViewModel : ViewModel() {
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to save questionnaire: ${e.localizedMessage}"
             }
-        }
-    }
-
-    /**
-     * Factory for creating QuestionnaireViewModel instances
-     */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(QuestionnaireViewModel::class.java)) {
-                return QuestionnaireViewModel() as T
-            }
-            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }
