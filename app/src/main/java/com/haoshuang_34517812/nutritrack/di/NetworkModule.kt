@@ -20,7 +20,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/"
+    private const val GEMINI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
     private const val FRUITYVICE_BASE_URL = "https://www.fruityvice.com/"
 
     @Provides
@@ -37,8 +37,8 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
             .build()
     }
 

@@ -27,6 +27,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -36,6 +37,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Search
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,9 +58,12 @@ import com.haoshuang_34517812.nutritrack.util.getFruitEmoji
 import com.haoshuang_34517812.nutritrack.viewmodel.ApiResult
 import com.haoshuang_34517812.nutritrack.viewmodel.FruitUiState
 import com.haoshuang_34517812.nutritrack.viewmodel.GenAIViewModel
+import com.haoshuang_34517812.nutritrack.viewmodel.GenAiUiState
 import com.haoshuang_34517812.nutritrack.viewmodel.NutriCoachViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+import java.util.Objects
 
 /**
  * Main NutriCoach screen with fruit information and GenAI nutrition tips
@@ -98,6 +109,94 @@ fun NutriCoachScreen(
     // Check current screen orientation
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    // Camera integration
+    val context = LocalContext.current
+    var currentPhotoUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    val identifiedFruit by genAiViewModel.identifiedFruit.collectAsState()
+    val genAiUiState by genAiViewModel.ui.collectAsState()
+
+    // Handle GenAI UI States (Loading, Error)
+    when (val state = genAiUiState) {
+        is GenAiUiState.Error -> {
+            AlertDialog(
+                onDismissRequest = { genAiViewModel.resetUiState() },
+                title = { Text("Error") },
+                text = { Text(state.message) },
+                confirmButton = {
+                    TextButton(onClick = { genAiViewModel.resetUiState() }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+        is GenAiUiState.Validation -> {
+             AlertDialog(
+                onDismissRequest = { genAiViewModel.resetUiState() },
+                title = { Text("Input Required") },
+                text = { Text(state.message) },
+                confirmButton = {
+                    TextButton(onClick = { genAiViewModel.resetUiState() }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+        else -> {}
+    }
+
+    // Auto-fill search when fruit is identified
+    LaunchedEffect(identifiedFruit) {
+        identifiedFruit?.let { fruitName ->
+            localQuery = fruitName
+            viewModel.updateQuery(fruitName)
+            viewModel.searchFruit()
+            fruitCardExpanded = true
+            genAiViewModel.clearIdentifiedFruit()
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && currentPhotoUri != null) {
+            currentPhotoUri?.let { uri ->
+                genAiViewModel.identifyFruit(uri)
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val photoFile = createImageFile(context)
+            val photoUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                photoFile
+            )
+            currentPhotoUri = photoUri
+            cameraLauncher.launch(photoUri)
+        }
+    }
+
+    val onCameraClick = {
+        val permissionCheckResult = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+        if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
+            val photoFile = createImageFile(context)
+            val photoUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                photoFile
+            )
+            currentPhotoUri = photoUri
+            cameraLauncher.launch(photoUri)
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     // Reset GenAI state when screen is disposed
     DisposableEffect(Unit) {
@@ -153,7 +252,8 @@ fun NutriCoachScreen(
                 suggestedPromptsShort = suggestedPromptsShort,
                 suggestedPromptsFull = suggestedPromptsFull,
                 onShowHistory = { showTipHistory = true },
-                scrollState = scrollState
+                scrollState = scrollState,
+                onCameraClick = onCameraClick
             )
         } else {
             PortraitNutriCoachLayout(
@@ -174,7 +274,8 @@ fun NutriCoachScreen(
                 suggestedPromptsShort = suggestedPromptsShort,
                 suggestedPromptsFull = suggestedPromptsFull,
                 onShowHistory = { showTipHistory = true },
-                scrollState = scrollState
+                scrollState = scrollState,
+                onCameraClick = onCameraClick
             )
         }
     }
@@ -202,7 +303,8 @@ private fun PortraitNutriCoachLayout(
     suggestedPromptsShort: List<String>,
     suggestedPromptsFull: List<String>,
     onShowHistory: () -> Unit,
-    scrollState: ScrollState
+    scrollState: ScrollState,
+    onCameraClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -234,7 +336,8 @@ private fun PortraitNutriCoachLayout(
                     onExpandedChange(false)
                     viewModel.resetState()
                     onQueryChange("")
-                }
+                },
+                onCameraClick = onCameraClick
             )
         } else {
             GoodScoreCard()
@@ -282,7 +385,8 @@ private fun LandscapeNutriCoachLayout(
     suggestedPromptsShort: List<String>,
     suggestedPromptsFull: List<String>,
     onShowHistory: () -> Unit,
-    scrollState: ScrollState
+    scrollState: ScrollState,
+    onCameraClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -322,7 +426,8 @@ private fun LandscapeNutriCoachLayout(
                         viewModel.resetState()
                         onQueryChange("")
                     },
-                    isLandscape = true
+                    isLandscape = true,
+                    onCameraClick = onCameraClick
                 )
             } else {
                 GoodScoreCard(isLandscape = true)
@@ -388,7 +493,8 @@ fun FruitSearchCard(
     focusRequester: FocusRequester,
     fruitUiState: FruitUiState,
     onCloseCard: () -> Unit,
-    isLandscape: Boolean = false
+    isLandscape: Boolean = false,
+    onCameraClick: () -> Unit
 ) {
     // Adjust padding and spacing for landscape
     val cardPadding = if (isLandscape) 12.dp else 16.dp
@@ -428,7 +534,8 @@ fun FruitSearchCard(
                 onSearch = onSearch,
                 focusRequester = focusRequester,
                 placeholder = stringResource(R.string.nutriCoachScreen_searchPlaceholder),
-                isLandscape = isLandscape
+                isLandscape = isLandscape,
+                onCameraClick = onCameraClick
             )
 
             Spacer(modifier = Modifier.height(if (isLandscape) 6.dp else 8.dp))
@@ -456,7 +563,8 @@ fun SearchInputField(
     onSearch: () -> Unit,
     focusRequester: FocusRequester,
     placeholder: String,
-    isLandscape: Boolean = false
+    isLandscape: Boolean = false,
+    onCameraClick: () -> Unit
 ) {
     // Adjust sizes for landscape
     val cornerRadius = if (isLandscape) 12.dp else 16.dp
@@ -504,6 +612,19 @@ fun SearchInputField(
                 }
             }
         )
+
+        // Camera button
+        IconButton(
+            onClick = onCameraClick,
+            modifier = Modifier.size(buttonSize)
+        ) {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = "Camera",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(if (isLandscape) 18.dp else 24.dp)
+            )
+        }
 
         // Send button
         IconButton(
@@ -800,4 +921,14 @@ fun GoodScoreCard(isLandscape: Boolean = false) {
             )
         }
     }
+}
+
+private fun createImageFile(context: android.content.Context): File {
+    val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
+    val storageDir = context.cacheDir
+    return File.createTempFile(
+        "JPEG_${timeStamp}_",
+        ".jpg",
+        storageDir
+    )
 }

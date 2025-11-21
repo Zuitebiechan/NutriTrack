@@ -1,15 +1,22 @@
 package com.haoshuang_34517812.nutritrack.viewmodel
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.haoshuang_34517812.nutritrack.data.repository.GenAIRepository
 import com.haoshuang_34517812.nutritrack.data.repository.NutriCoachTipRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -19,7 +26,8 @@ import javax.inject.Inject
 @HiltViewModel
 class GenAIViewModel @Inject constructor(
     private val repo: GenAIRepository,
-    private val tipRepository: NutriCoachTipRepository
+    private val tipRepository: NutriCoachTipRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ApiResult<String>>(ApiResult.Initial)
@@ -27,6 +35,9 @@ class GenAIViewModel @Inject constructor(
 
     private val _ui = MutableStateFlow<GenAiUiState>(GenAiUiState.Idle)
     val ui: StateFlow<GenAiUiState> = _ui
+    
+    private val _identifiedFruit = MutableStateFlow<String?>(null)
+    val identifiedFruit: StateFlow<String?> = _identifiedFruit.asStateFlow()
 
     // Current prompt for database storage
     private var currentPrompt: String = ""
@@ -37,6 +48,51 @@ class GenAIViewModel @Inject constructor(
      * @return Flow of tips for the user
      */
     fun getTipsForUser(userId: String) = tipRepository.getTipsForUser(userId)
+
+    /**
+     * Identifies a fruit from an image URI
+     * @param uri The URI of the image to identify
+     */
+    fun identifyFruit(uri: Uri) {
+        viewModelScope.launch {
+            _ui.value = GenAiUiState.Loading("Identifying Fruit...")
+            try {
+                val bitmap = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        BitmapFactory.decodeStream(inputStream)
+                    }
+                }
+
+                if (bitmap != null) {
+                    when (val result = repo.identifyFruitFromImage(bitmap)) {
+                        is ApiResult.Success -> {
+                            val fruitName = result.data
+                            if (fruitName.contains("Not a fruit", ignoreCase = true)) {
+                                _ui.value = GenAiUiState.Error("Could not identify a fruit in this image.")
+                            } else {
+                                _identifiedFruit.value = fruitName
+                                _ui.value = GenAiUiState.Idle // Reset UI state as we handled it
+                            }
+                        }
+                        is ApiResult.Error -> {
+                            _ui.value = GenAiUiState.Error("Failed to identify fruit: ${result}")
+                        }
+                        else -> {
+                            _ui.value = GenAiUiState.Error("Unknown error during identification")
+                        }
+                    }
+                } else {
+                    _ui.value = GenAiUiState.Error("Failed to load image")
+                }
+            } catch (e: Exception) {
+                _ui.value = GenAiUiState.Error("Error processing image: ${e.message}")
+            }
+        }
+    }
+    
+    fun clearIdentifiedFruit() {
+        _identifiedFruit.value = null
+    }
 
     /**
      * Generates insights based on population data
@@ -129,8 +185,13 @@ class GenAIViewModel @Inject constructor(
      */
     private fun sendPrompt(prompt: String) {
         viewModelScope.launch {
-            _ui.value = GenAiUiState.Loading
-            when (val r = repo.askGemini((prompt))) {
+            _ui.value = GenAiUiState.Loading("Generating Tip...")
+            _state.value = ApiResult.Loading
+            
+            val r = repo.askGemini((prompt))
+            _state.value = r
+            
+            when (r) {
                 is ApiResult.Success -> _ui.value = GenAiUiState.Content(r.data)
                 is ApiResult.Error.Network -> _ui.value = GenAiUiState.Error("Network issue, try again.")
                 is ApiResult.Error.Http -> _ui.value = GenAiUiState.Error("Server error: ${r.code}")
@@ -185,5 +246,12 @@ class GenAIViewModel @Inject constructor(
     fun reset() {
         _state.value = ApiResult.Initial
         currentPrompt = ""
+    }
+
+    /**
+     * Resets the UI state
+     */
+    fun resetUiState() {
+        _ui.value = GenAiUiState.Idle
     }
 }

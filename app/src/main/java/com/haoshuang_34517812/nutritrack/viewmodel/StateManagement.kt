@@ -69,7 +69,7 @@ sealed interface FruitUiState {
 
 sealed class GenAiUiState {
     data object Idle : GenAiUiState()
-    data object Loading : GenAiUiState()
+    data class Loading(val message: String = "Loading...") : GenAiUiState()
     data class Content(val text: String) : GenAiUiState()
     data class Error(val message: String) : GenAiUiState()           // 远端错误展示文案
     data class Validation(val message: String) : GenAiUiState()      // ✅ 本地校验
