@@ -516,7 +516,18 @@ fun GenAIInsightComponent(
 }
 
 /**
- * Complete GenAI advice card with prompt suggestions
+ * Complete GenAI advice card with prompt suggestions and RAG-enhanced personalization
+ *
+ * @param aiResult Current API result state
+ * @param genAiViewModel ViewModel for GenAI interactions
+ * @param userId User ID for personalized advice (required for RAG)
+ * @param title Title of the card
+ * @param suggestedPromptsShort Short display texts for suggested prompts
+ * @param suggestedPromptsFull Full prompts to send when suggestions are clicked
+ * @param defaultPrompt Default prompt placeholder text
+ * @param showHistory Whether to show the history button
+ * @param onShowHistory Action when history button is clicked
+ * @param useRAG Whether to use RAG-enhanced personalized advice (default: true)
  */
 @Composable
 fun GenAIAdviceComponent(
@@ -528,7 +539,8 @@ fun GenAIAdviceComponent(
     suggestedPromptsFull: List<String> = listOf(),
     defaultPrompt: String = stringResource(R.string.nutriCoachScreen_defaultPrompt),
     showHistory: Boolean = true,
-    onShowHistory: () -> Unit = {}
+    onShowHistory: () -> Unit = {},
+    useRAG: Boolean = true
 ) {
     // UI state
     var expanded by remember { mutableStateOf(false) }
@@ -540,6 +552,17 @@ fun GenAIAdviceComponent(
     LaunchedEffect(aiResult) {
         if (aiResult is ApiResult.Success || aiResult is ApiResult.Loading) {
             expanded = true
+        }
+    }
+
+    // Helper function to send prompt with or without RAG
+    val sendPrompt: (String) -> Unit = { prompt ->
+        if (useRAG && userId.isNotBlank()) {
+            // Use RAG-enhanced personalized advice
+            genAiViewModel.sendPersonalizedAdviceRequest(userId, prompt)
+        } else {
+            // Fallback to simple prompt
+            genAiViewModel.sendCustomPrompt(prompt)
         }
     }
 
@@ -568,7 +591,7 @@ fun GenAIAdviceComponent(
                                 } else {
                                     suggestedPromptsShort[i]
                                 }
-                                genAiViewModel.sendCustomPrompt(fullPrompt)
+                                sendPrompt(fullPrompt)
                             },
                             modifier = Modifier.wrapContentWidth()
                         )
@@ -585,7 +608,7 @@ fun GenAIAdviceComponent(
                 placeholderText = defaultPrompt,
                 onSend = { prompt ->
                     val finalPrompt = prompt.ifBlank { defaultPrompt }
-                    genAiViewModel.sendCustomPrompt(finalPrompt)
+                    sendPrompt(finalPrompt)
                     customPrompt = ""
                 },
                 focusRequester = focusRequester,

@@ -8,6 +8,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.haoshuang_34517812.nutritrack.data.repository.GenAIRepository
 import com.haoshuang_34517812.nutritrack.data.repository.NutriCoachTipRepository
+import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
+import com.haoshuang_34517812.nutritrack.data.repository.QuestionnaireInfoRepository
+import com.haoshuang_34517812.nutritrack.data.room.entity.NutriCoachTipEntity
+import com.haoshuang_34517812.nutritrack.data.room.entity.PatientEntity
+import com.haoshuang_34517812.nutritrack.data.room.entity.QuestionnaireInfoEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -15,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -27,6 +33,8 @@ import javax.inject.Inject
 class GenAIViewModel @Inject constructor(
     private val repo: GenAIRepository,
     private val tipRepository: NutriCoachTipRepository,
+    private val patientRepository: PatientRepository,
+    private val questionnaireRepository: QuestionnaireInfoRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -161,6 +169,170 @@ class GenAIViewModel @Inject constructor(
 
         currentPrompt = enhancedPrompt
         sendPrompt(enhancedPrompt)
+    }
+
+    /**
+     * Sends a personalized nutrition advice request using RAG approach.
+     * Combines user's nutrition data, questionnaire info, problem areas, and recent tips
+     * to provide context-aware AI responses.
+     *
+     * @param userId ID of the user
+     * @param userQuestion The user's question
+     */
+    fun sendPersonalizedAdviceRequest(userId: String, userQuestion: String) {
+        if (userQuestion.isBlank()) {
+            _ui.value = GenAiUiState.Validation("Question cannot be empty")
+            return
+        }
+
+        viewModelScope.launch {
+            _ui.value = GenAiUiState.Loading("Analyzing your nutrition profile...")
+            _state.value = ApiResult.Loading
+
+            try {
+                // Retrieve user data for RAG context
+                val patient = patientRepository.getPatientById(userId)
+                val questionnaireInfo = questionnaireRepository.getInfoForUser(userId)
+                val recentTips = tipRepository.getTipsForUser(userId).first().take(3)
+
+                // Build personalized prompt with context
+                val ragPrompt = buildRAGPrompt(
+                    userQuestion = userQuestion,
+                    patient = patient,
+                    questionnaireInfo = questionnaireInfo,
+                    recentTips = recentTips
+                )
+
+                currentPrompt = ragPrompt
+                
+                // Send to AI
+                val result = repo.askGemini(ragPrompt)
+                _state.value = result
+
+                when (result) {
+                    is ApiResult.Success -> _ui.value = GenAiUiState.Content(result.data)
+                    is ApiResult.Error.Network -> _ui.value = GenAiUiState.Error("Network issue, try again.")
+                    is ApiResult.Error.Http -> _ui.value = GenAiUiState.Error("Server error: ${result.code}")
+                    is ApiResult.Error.Parsing -> _ui.value = GenAiUiState.Error(result.toString())
+                    else -> _ui.value = GenAiUiState.Error("Unknown error")
+                }
+            } catch (e: Exception) {
+                _state.value = ApiResult.Error.Unknown(e)
+                _ui.value = GenAiUiState.Error("Failed to load user data: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Builds a RAG-enhanced prompt with user context
+     */
+    private fun buildRAGPrompt(
+        userQuestion: String,
+        patient: PatientEntity?,
+        questionnaireInfo: QuestionnaireInfoEntity?,
+        recentTips: List<NutriCoachTipEntity>
+    ): String = buildString {
+        appendLine("You are a professional nutrition coach assistant. Please provide personalized advice based on the user's nutrition profile.")
+        appendLine()
+
+        // Section 1: User Nutrition Profile
+        if (patient != null) {
+            appendLine("=== USER NUTRITION PROFILE ===")
+            appendLine("Overall HEIFA Score: ${String.format("%.1f", patient.heifaTotalScore)}/100")
+            appendLine()
+            appendLine("Detailed Scores (out of 10):")
+            appendLine("• Fruits: ${String.format("%.1f", patient.fruitScore)} | Variations: ${String.format("%.1f", patient.fruitVariantionsScore)} | Serve Size: ${String.format("%.1f", patient.fruitServeSize)}")
+            appendLine("• Vegetables: ${String.format("%.1f", patient.vegetableScore)} | Variations: ${String.format("%.1f", patient.vegetablesVariantionsScore)}")
+            appendLine("• Grains & Cereals: ${String.format("%.1f", patient.grainsScore)}")
+            appendLine("• Whole Grains: ${String.format("%.1f", patient.wholegrainsScore)}")
+            appendLine("• Meat & Alternatives: ${String.format("%.1f", patient.meatAndAlternativeScore)}")
+            appendLine("• Dairy & Alternatives: ${String.format("%.1f", patient.dairyScore)}")
+            appendLine("• Water: ${String.format("%.1f", patient.waterScore)}")
+            appendLine("• Sodium: ${String.format("%.1f", patient.sodiumScore)}")
+            appendLine("• Sugar: ${String.format("%.1f", patient.sugarScore)}")
+            appendLine("• Saturated Fat: ${String.format("%.1f", patient.saturatedFatScore)}")
+            appendLine("• Unsaturated Fat: ${String.format("%.1f", patient.unsaturatedFatScore)}")
+            appendLine("• Alcohol: ${String.format("%.1f", patient.alcoholScore)}")
+            appendLine("• Discretionary Foods: ${String.format("%.1f", patient.discretionaryScore)}")
+            appendLine()
+
+            // Section 2: Identify Problem Areas (scores below 5.0)
+            val problemAreas = identifyProblemAreas(patient)
+            if (problemAreas.isNotEmpty()) {
+                appendLine("⚠️ AREAS NEEDING IMPROVEMENT (score < 5.0):")
+                problemAreas.forEach { (area, score) ->
+                    appendLine("• $area: ${String.format("%.1f", score)}/10 - Needs attention")
+                }
+                appendLine()
+            }
+        } else {
+            appendLine("=== USER NUTRITION PROFILE ===")
+            appendLine("No nutrition data available for this user.")
+            appendLine()
+        }
+
+        // Section 3: User Persona and Preferences
+        if (questionnaireInfo != null) {
+            appendLine("=== USER PREFERENCES ===")
+            appendLine("Persona Type: ${questionnaireInfo.persona.displayName}")
+            appendLine("Persona Description: ${questionnaireInfo.persona.description}")
+            appendLine("Biggest Meal Time: ${questionnaireInfo.biggestMealTime}")
+            appendLine("Sleep Time: ${questionnaireInfo.sleepTime}")
+            appendLine("Wake Time: ${questionnaireInfo.wakeTime}")
+            if (questionnaireInfo.selectedCategories.isNotEmpty()) {
+                appendLine("Interested Food Categories: ${questionnaireInfo.selectedCategories.joinToString(", ") { it.displayName }}")
+            }
+            appendLine()
+        }
+
+        // Section 4: Recent AI Tips (to avoid repetition)
+        if (recentTips.isNotEmpty()) {
+            appendLine("=== RECENT ADVICE GIVEN (avoid repeating) ===")
+            recentTips.forEachIndexed { index, tip ->
+                appendLine("${index + 1}. ${tip.tipContent.take(150)}...")
+            }
+            appendLine()
+        }
+
+        // Section 5: User Question
+        appendLine("=== USER'S QUESTION ===")
+        appendLine(userQuestion)
+        appendLine()
+
+        // Section 6: Instructions for AI
+        appendLine("=== INSTRUCTIONS ===")
+        appendLine("1. Provide personalized advice based on the user's actual nutrition scores")
+        appendLine("2. Focus especially on the problem areas identified above")
+        appendLine("3. Consider the user's persona type when giving advice")
+        appendLine("4. Avoid repeating advice that was recently given")
+        appendLine("5. Be concise, practical, and encouraging")
+        appendLine("6. Include specific food recommendations when appropriate")
+    }
+
+    /**
+     * Identifies nutrition areas that need improvement (score < 5.0)
+     * @return List of problem areas with their scores
+     */
+    private fun identifyProblemAreas(patient: PatientEntity): List<Pair<String, Double>> {
+        val threshold = 5.0
+        val areas = mutableListOf<Pair<String, Double>>()
+
+        if (patient.fruitScore < threshold) areas.add("Fruits" to patient.fruitScore)
+        if (patient.vegetableScore < threshold) areas.add("Vegetables" to patient.vegetableScore)
+        if (patient.grainsScore < threshold) areas.add("Grains & Cereals" to patient.grainsScore)
+        if (patient.wholegrainsScore < threshold) areas.add("Whole Grains" to patient.wholegrainsScore)
+        if (patient.meatAndAlternativeScore < threshold) areas.add("Meat & Alternatives" to patient.meatAndAlternativeScore)
+        if (patient.dairyScore < threshold) areas.add("Dairy & Alternatives" to patient.dairyScore)
+        if (patient.waterScore < threshold) areas.add("Water" to patient.waterScore)
+        if (patient.sodiumScore < threshold) areas.add("Sodium" to patient.sodiumScore)
+        if (patient.sugarScore < threshold) areas.add("Sugar" to patient.sugarScore)
+        if (patient.saturatedFatScore < threshold) areas.add("Saturated Fat" to patient.saturatedFatScore)
+        if (patient.unsaturatedFatScore < threshold) areas.add("Unsaturated Fat" to patient.unsaturatedFatScore)
+        if (patient.alcoholScore < threshold) areas.add("Alcohol" to patient.alcoholScore)
+        if (patient.discretionaryScore < threshold) areas.add("Discretionary Foods" to patient.discretionaryScore)
+
+        // Sort by score (lowest first) to prioritize worst areas
+        return areas.sortedBy { it.second }
     }
 
     /**
