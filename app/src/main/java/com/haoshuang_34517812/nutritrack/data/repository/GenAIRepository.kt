@@ -2,18 +2,24 @@ package com.haoshuang_34517812.nutritrack.data.repository
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.google.gson.Gson
 import com.haoshuang_34517812.nutritrack.BuildConfig
 import com.haoshuang_34517812.nutritrack.data.network.GenAIApiService
 import com.haoshuang_34517812.nutritrack.data.network.genai.ContentPart
 import com.haoshuang_34517812.nutritrack.data.network.genai.ImageUrl
 import com.haoshuang_34517812.nutritrack.data.network.genai.OpenAIMessage
 import com.haoshuang_34517812.nutritrack.data.network.genai.OpenAIRequest
+import com.haoshuang_34517812.nutritrack.data.network.genai.OpenAIStreamResponse
 import com.haoshuang_34517812.nutritrack.data.network.genai.Thinking
 import com.haoshuang_34517812.nutritrack.viewmodel.ApiResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import okio.IOException
+import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 
@@ -21,6 +27,7 @@ class GenAIRepository @Inject constructor(
     private val apiService: GenAIApiService
 ) {
     private val apiKey: String = BuildConfig.apiKeySafe
+    private val gson = Gson()
 
     suspend fun askGemini(prompt: String): ApiResult<String> = withContext(Dispatchers.IO) {
         try {
@@ -53,6 +60,91 @@ class GenAIRepository @Inject constructor(
             ApiResult.Error.Unknown(t)
         }
     }
+
+    /**
+     * Stream AI response using SSE (Server-Sent Events)
+     * Emits text chunks as they arrive, significantly reducing TTFT (Time To First Token)
+     *
+     * @param prompt The prompt to send to the AI
+     * @return Flow of StreamResult containing incremental text or completion/error status
+     */
+    fun askGeminiStream(prompt: String): Flow<StreamResult> = flow {
+        try {
+            val request = OpenAIRequest(
+                model = "glm-4-flash",
+                messages = listOf(
+                    OpenAIMessage(role = "user", content = prompt)
+                ),
+                stream = true  // Enable streaming
+            )
+
+            val response = apiService.generateContentStream(request, "Bearer $apiKey")
+
+            if (!response.isSuccessful) {
+                val errorBody = response.errorBody()?.string()
+                emit(StreamResult.Error("HTTP ${response.code()}: $errorBody"))
+                return@flow
+            }
+
+            val responseBody = response.body()
+            if (responseBody == null) {
+                emit(StreamResult.Error("Empty response body"))
+                return@flow
+            }
+
+            // Read SSE stream line by line
+            val reader: BufferedReader = responseBody.byteStream().bufferedReader()
+            var line: String?
+
+            while (reader.readLine().also { line = it } != null) {
+                val currentLine = line ?: continue
+
+                // SSE format: "data: {...json...}" or "data: [DONE]"
+                if (currentLine.startsWith("data:")) {
+                    val jsonData = currentLine.removePrefix("data:").trim()
+
+                    // Check for stream end signal
+                    if (jsonData == "[DONE]") {
+                        emit(StreamResult.Complete)
+                        break
+                    }
+
+                    // Skip empty data
+                    if (jsonData.isEmpty()) continue
+
+                    try {
+                        // Parse the SSE JSON chunk
+                        val streamResponse = gson.fromJson(jsonData, OpenAIStreamResponse::class.java)
+                        val content = streamResponse.choices?.firstOrNull()?.delta?.content
+
+                        if (!content.isNullOrEmpty()) {
+                            emit(StreamResult.Chunk(content))
+                        }
+
+                        // Check if this is the final chunk
+                        val finishReason = streamResponse.choices?.firstOrNull()?.finish_reason
+                        if (finishReason == "stop") {
+                            emit(StreamResult.Complete)
+                            break
+                        }
+                    } catch (e: Exception) {
+                        // Skip malformed JSON chunks, continue reading
+                        continue
+                    }
+                }
+            }
+
+            reader.close()
+            responseBody.close()
+
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (io: IOException) {
+            emit(StreamResult.Error("Network error: ${io.message}"))
+        } catch (t: Throwable) {
+            emit(StreamResult.Error("Error: ${t.message}"))
+        }
+    }.flowOn(Dispatchers.IO)
 
     suspend fun identifyFruitFromImage(bitmap: Bitmap): ApiResult<String> = withContext(Dispatchers.IO) {
         try {
@@ -115,4 +207,18 @@ class GenAIRepository @Inject constructor(
         val byteArray = outputStream.toByteArray()
         return Base64.encodeToString(byteArray, Base64.NO_WRAP)
     }
+}
+
+/**
+ * Represents the result of a streaming AI response
+ */
+sealed class StreamResult {
+    /** A chunk of text content received from the stream */
+    data class Chunk(val text: String) : StreamResult()
+    
+    /** The stream has completed successfully */
+    data object Complete : StreamResult()
+    
+    /** An error occurred during streaming */
+    data class Error(val message: String) : StreamResult()
 }

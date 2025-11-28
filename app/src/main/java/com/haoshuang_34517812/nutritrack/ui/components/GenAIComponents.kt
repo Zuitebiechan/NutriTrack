@@ -39,6 +39,7 @@ import com.haoshuang_34517812.nutritrack.R
 import com.haoshuang_34517812.nutritrack.theme.LightGreen
 import com.haoshuang_34517812.nutritrack.theme.LightGrey
 import com.haoshuang_34517812.nutritrack.viewmodel.ApiResult
+import com.haoshuang_34517812.nutritrack.viewmodel.GenAiUiState
 import com.haoshuang_34517812.nutritrack.viewmodel.GenAIViewModel
 
 /**
@@ -240,10 +241,19 @@ fun SuggestedPromptChip(
 @Composable
 fun GenAIResultSection(
     aiResult: ApiResult<String>,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    streamingText: String = "",
+    isStreaming: Boolean = false
 ) {
-    when (aiResult) {
-        is ApiResult.Initial -> {
+    when {
+        // Streaming state - show text as it arrives
+        isStreaming && streamingText.isNotEmpty() -> {
+            GenAIStreamingCard(
+                text = streamingText,
+                onClose = onClose
+            )
+        }
+        aiResult is ApiResult.Initial -> {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -259,8 +269,8 @@ fun GenAIResultSection(
                 )
             }
         }
-        is ApiResult.Loading -> {
-            // Loading state
+        aiResult is ApiResult.Loading && streamingText.isEmpty() -> {
+            // Loading state (before first token arrives)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -273,14 +283,14 @@ fun GenAIResultSection(
                 )
             }
         }
-        is ApiResult.Success -> {
-            // Success state - show generated content
+        aiResult is ApiResult.Success -> {
+            // Success state - show completed content
             GenAIResultCard(
                 text = aiResult.data,
                 onClose = onClose
             )
         }
-        is ApiResult.Error -> {
+        aiResult is ApiResult.Error -> {
             // Error state
             GenAIErrorCard(
                 message = aiResult.toString(),
@@ -291,7 +301,68 @@ fun GenAIResultSection(
 }
 
 /**
- * Card displaying successful GenAI result with typewriter effect
+ * Card displaying streaming GenAI result (real-time text output)
+ */
+@Composable
+fun GenAIStreamingCard(
+    text: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = LightGrey.copy(alpha = 0.8f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                // Direct markdown text display (no typewriter effect - we're already streaming!)
+                MarkdownText(
+                    markdown = text,
+                    modifier = Modifier.fillMaxWidth(),
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    color = Color.Black,
+                    fontFamily = FontFamily(Font(R.font.poppins))
+                )
+                
+                // Streaming indicator (blinking cursor effect)
+                Text(
+                    text = "▌",
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Close button
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(32.dp)
+                    .background(
+                        color = Color.White.copy(alpha = 0.7f),
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(16.dp),
+                    tint = Color.DarkGray
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Card displaying successful GenAI result
  */
 @Composable
 fun GenAIResultCard(
@@ -310,16 +381,14 @@ fun GenAIResultCard(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Typewriter effect text
-                TypewriterMarkdownText(
-                    text = text,
+                // Direct markdown text (no typewriter - streaming already provides real-time output)
+                MarkdownText(
+                    markdown = text,
                     modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(
-                        fontSize = 16.sp,
-                        lineHeight = 24.sp,
-                        color = Color.Black,
-                        fontFamily = FontFamily(Font(R.font.poppins))
-                    )
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    color = Color.Black,
+                    fontFamily = FontFamily(Font(R.font.poppins))
                 )
             }
 
@@ -547,10 +616,17 @@ fun GenAIAdviceComponent(
     var customPrompt by remember { mutableStateOf("") }
     var isPromptFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    
+    // Collect streaming text from ViewModel
+    val streamingText by genAiViewModel.streamingText.collectAsState()
+    val uiState by genAiViewModel.ui.collectAsState()
+    
+    // Determine if currently streaming
+    val isStreaming = uiState is GenAiUiState.Streaming && !(uiState as? GenAiUiState.Streaming)?.isComplete.orFalse()
 
-    // Expand card when AI generates a response
-    LaunchedEffect(aiResult) {
-        if (aiResult is ApiResult.Success || aiResult is ApiResult.Loading) {
+    // Expand card when AI generates a response or starts streaming
+    LaunchedEffect(aiResult, uiState) {
+        if (aiResult is ApiResult.Success || aiResult is ApiResult.Loading || uiState is GenAiUiState.Streaming) {
             expanded = true
         }
     }
@@ -616,21 +692,33 @@ fun GenAIAdviceComponent(
             )
         },
         resultContent = {
-            // Result content
+            // Result content with streaming support
             GenAIResultSection(
                 aiResult = aiResult,
                 onClose = {
                     genAiViewModel.reset()
                     expanded = false
-                }
+                },
+                streamingText = streamingText,
+                isStreaming = isStreaming
             )
         }
     )
 
-    // Auto-save tip when successful
+    // Auto-save tip when streaming completes or succeeds
+    LaunchedEffect(uiState) {
+        val state = uiState
+        if (state is GenAiUiState.Streaming && state.isComplete && userId.isNotBlank()) {
+            genAiViewModel.saveTipToDatabase(userId)
+        }
+    }
+    
     LaunchedEffect(aiResult) {
         if (aiResult is ApiResult.Success && userId.isNotBlank()) {
             genAiViewModel.saveTipToDatabase(userId)
         }
     }
 }
+
+// Extension function for null-safe Boolean
+private fun Boolean?.orFalse(): Boolean = this ?: false

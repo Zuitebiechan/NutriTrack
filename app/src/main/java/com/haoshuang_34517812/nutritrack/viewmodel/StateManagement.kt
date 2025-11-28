@@ -71,6 +71,7 @@ sealed class GenAiUiState {
     data object Idle : GenAiUiState()
     data class Loading(val message: String = "Loading...") : GenAiUiState()
     data class Content(val text: String) : GenAiUiState()
+    data class Streaming(val text: String, val isComplete: Boolean = false) : GenAiUiState()  // 流式输出状态
     data class Error(val message: String) : GenAiUiState()           // 远端错误展示文案
     data class Validation(val message: String) : GenAiUiState()      // ✅ 本地校验
 }

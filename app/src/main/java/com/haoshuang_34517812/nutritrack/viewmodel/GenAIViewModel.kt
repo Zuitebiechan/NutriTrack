@@ -10,6 +10,7 @@ import com.haoshuang_34517812.nutritrack.data.repository.GenAIRepository
 import com.haoshuang_34517812.nutritrack.data.repository.NutriCoachTipRepository
 import com.haoshuang_34517812.nutritrack.data.repository.PatientRepository
 import com.haoshuang_34517812.nutritrack.data.repository.QuestionnaireInfoRepository
+import com.haoshuang_34517812.nutritrack.data.repository.StreamResult
 import com.haoshuang_34517812.nutritrack.data.room.entity.NutriCoachTipEntity
 import com.haoshuang_34517812.nutritrack.data.room.entity.PatientEntity
 import com.haoshuang_34517812.nutritrack.data.room.entity.QuestionnaireInfoEntity
@@ -17,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,8 +49,15 @@ class GenAIViewModel @Inject constructor(
     private val _identifiedFruit = MutableStateFlow<String?>(null)
     val identifiedFruit: StateFlow<String?> = _identifiedFruit.asStateFlow()
 
+    // Streaming text accumulator
+    private val _streamingText = MutableStateFlow("")
+    val streamingText: StateFlow<String> = _streamingText.asStateFlow()
+
     // Current prompt for database storage
     private var currentPrompt: String = ""
+    
+    // Current streaming job for cancellation
+    private var streamingJob: Job? = null
 
     /**
      * Gets all tips for a specific user
@@ -155,7 +164,7 @@ class GenAIViewModel @Inject constructor(
     }
 
     /**
-     * Sends a custom prompt to the AI
+     * Sends a custom prompt to the AI using streaming
      * @param prompt The prompt to send
      */
     fun sendCustomPrompt(prompt: String) {
@@ -168,13 +177,13 @@ class GenAIViewModel @Inject constructor(
         val enhancedPrompt = ensureNutritionContext(prompt)
 
         currentPrompt = enhancedPrompt
-        sendPrompt(enhancedPrompt)
+        sendPromptStream(enhancedPrompt)  // Use streaming
     }
 
     /**
-     * Sends a personalized nutrition advice request using RAG approach.
+     * Sends a personalized nutrition advice request using RAG approach with streaming.
      * Combines user's nutrition data, questionnaire info, problem areas, and recent tips
-     * to provide context-aware AI responses.
+     * to provide context-aware AI responses with real-time streaming output.
      *
      * @param userId ID of the user
      * @param userQuestion The user's question
@@ -205,17 +214,9 @@ class GenAIViewModel @Inject constructor(
 
                 currentPrompt = ragPrompt
                 
-                // Send to AI
-                val result = repo.askGemini(ragPrompt)
-                _state.value = result
-
-                when (result) {
-                    is ApiResult.Success -> _ui.value = GenAiUiState.Content(result.data)
-                    is ApiResult.Error.Network -> _ui.value = GenAiUiState.Error("Network issue, try again.")
-                    is ApiResult.Error.Http -> _ui.value = GenAiUiState.Error("Server error: ${result.code}")
-                    is ApiResult.Error.Parsing -> _ui.value = GenAiUiState.Error(result.toString())
-                    else -> _ui.value = GenAiUiState.Error("Unknown error")
-                }
+                // Use streaming for real-time output
+                sendPromptStream(ragPrompt)
+                
             } catch (e: Exception) {
                 _state.value = ApiResult.Error.Unknown(e)
                 _ui.value = GenAiUiState.Error("Failed to load user data: ${e.message}")
@@ -374,6 +375,62 @@ class GenAIViewModel @Inject constructor(
     }
 
     /**
+     * Sends a prompt to the AI using SSE streaming for real-time text output.
+     * This significantly reduces TTFT (Time To First Token) and improves user experience.
+     *
+     * @param prompt The prompt to send
+     */
+    private fun sendPromptStream(prompt: String) {
+        // Cancel any existing streaming job
+        streamingJob?.cancel()
+        
+        streamingJob = viewModelScope.launch {
+            _streamingText.value = ""
+            _ui.value = GenAiUiState.Streaming("", isComplete = false)
+            _state.value = ApiResult.Loading
+
+            repo.askGeminiStream(prompt).collect { result ->
+                when (result) {
+                    is StreamResult.Chunk -> {
+                        // Append new chunk to accumulated text
+                        _streamingText.value += result.text
+                        _ui.value = GenAiUiState.Streaming(_streamingText.value, isComplete = false)
+                    }
+                    is StreamResult.Complete -> {
+                        // Stream completed successfully
+                        val finalText = _streamingText.value
+                        _state.value = ApiResult.Success(finalText)
+                        _ui.value = GenAiUiState.Streaming(finalText, isComplete = true)
+                    }
+                    is StreamResult.Error -> {
+                        _state.value = ApiResult.Error.Unknown(Exception(result.message))
+                        _ui.value = GenAiUiState.Error(result.message)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Cancels the current streaming operation if any
+     */
+    fun cancelStreaming() {
+        streamingJob?.cancel()
+        streamingJob = null
+        if (_ui.value is GenAiUiState.Streaming) {
+            val currentText = (_ui.value as GenAiUiState.Streaming).text
+            if (currentText.isNotEmpty()) {
+                // Keep partial content if user cancels mid-stream
+                _ui.value = GenAiUiState.Streaming(currentText, isComplete = true)
+                _state.value = ApiResult.Success(currentText)
+            } else {
+                _ui.value = GenAiUiState.Idle
+                _state.value = ApiResult.Initial
+            }
+        }
+    }
+
+    /**
      * Saves the current AI response as a tip in the database
      * @param userId ID of the user to associate with the tip
      */
@@ -416,7 +473,10 @@ class GenAIViewModel @Inject constructor(
      * Resets the AI state
      */
     fun reset() {
+        streamingJob?.cancel()
+        streamingJob = null
         _state.value = ApiResult.Initial
+        _streamingText.value = ""
         currentPrompt = ""
     }
 

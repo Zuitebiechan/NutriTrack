@@ -41,6 +41,28 @@ data class OpenAIMessageContent(
     val content: String
 )
 
+// --- SSE Streaming Response Models ---
+
+/**
+ * SSE streaming response chunk from OpenAI-compatible API
+ * Format: data: {"id":"...","choices":[{"delta":{"content":"text"},...}],...}
+ */
+data class OpenAIStreamResponse(
+    val id: String? = null,
+    val choices: List<OpenAIStreamChoice>? = null
+)
+
+data class OpenAIStreamChoice(
+    val index: Int = 0,
+    val delta: OpenAIDelta? = null,
+    val finish_reason: String? = null
+)
+
+data class OpenAIDelta(
+    val role: String? = null,
+    val content: String? = null
+)
+
 // --- Legacy Gemini Models (kept for reference or fallback) ---
 
 data class GeminiRequest(
